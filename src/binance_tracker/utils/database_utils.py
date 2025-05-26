@@ -112,16 +112,23 @@ class Trade(Base):
 
 # --- Database Utility Functions ---
 
-def create_db_tables():
-    """Creates all database tables defined in Base metadata."""
-    if not engine:
-        logger.error("Database engine is not initialized. Cannot create tables.")
-        return
+def create_db_tables(engine_to_use=None):
+    """
+    Creates all database tables defined in Base metadata.
+    Uses the provided engine_to_use, or the module's default engine if None.
+    """
+    target_engine = engine_to_use if engine_to_use else engine
+    if not target_engine:
+        logger.error("Database engine is not available. Cannot create tables.")
+        # Optionally raise an error or handle as appropriate for your application's startup sequence
+        raise ConnectionError("Database engine not initialized and no alternative engine provided.")
+    
     try:
-        Base.metadata.create_all(bind=engine)
-        logger.info("Database tables created successfully (if they didn't exist).")
+        Base.metadata.create_all(bind=target_engine)
+        logger.info(f"Database tables created/verified using engine: {target_engine.url.database}")
     except Exception as e:
-        logger.error(f"Error creating database tables: {e}", exc_info=True)
+        logger.error(f"Error creating database tables with engine {target_engine.url.database}: {e}", exc_info=True)
+        raise # Re-raise the exception to make the caller aware of the failure
 
 def get_db():
     """
@@ -147,26 +154,32 @@ def get_db():
         db.close()
 
 if __name__ == '__main__':
-    logger.info("Running database_utils.py directly.")
-    logger.info("Attempting to create database tables...")
-    # The engine might be None if get_database_url() had issues or create_engine failed.
-    if engine:
-        create_db_tables()
-        logger.info("Table creation process finished. Check logs for details.")
+    logger.info("Running database_utils.py directly for setup.")
+    
+    try:
+        logger.info("Attempting to create database tables using default engine...")
+        create_db_tables() # Uses the module's default `engine`
+        logger.info("Table creation process finished for default engine. Check logs for details.")
         
-        # Example of using get_db (optional, for testing connection)
-        logger.info("Testing database connection by acquiring a session...")
-        try:
-            with get_db() as db:
+        # Example of using get_db (optional, for testing connection with default engine)
+        if engine: # Check if default engine was successfully initialized
+            logger.info("Testing database connection for default engine by acquiring a session...")
+            with get_db() as db: # get_db uses the module's default SessionLocal
                 if db:
-                    # Try a simple query
-                    db.execute("SELECT 1")
-                    logger.info("Successfully connected to the database and executed a test query.")
+                    db.execute(text("SELECT 1")) # Use text() for SQLAlchemy 2.0 compatibility
+                    logger.info("Successfully connected to the default database and executed a test query.")
                 else:
-                    logger.error("Failed to acquire database session for testing.")
-        except Exception as e:
-            logger.error(f"Failed to connect to the database during test: {e}", exc_info=True)
-            logger.error("Please ensure your PostgreSQL server is running and configured correctly in .env.")
-    else:
-        logger.error("Database engine is not available. Cannot run table creation or tests.")
-        logger.error("Please check your .env configuration and PostgreSQL server status.")
+                    logger.error("Failed to acquire database session for default engine testing.")
+        else:
+            logger.warning("Default database engine not initialized, skipping connection test.")
+            
+    except ConnectionError as ce: # Catch ConnectionError specifically from create_db_tables
+        logger.error(f"Setup via database_utils.py failed: {ce}")
+        logger.error("This may be due to missing .env file or incorrect DB connection details for the default engine.")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during direct execution of database_utils.py: {e}", exc_info=True)
+        logger.error("Please ensure your PostgreSQL server is running and configured correctly in .env for the default setup.")
+
+    # Note: The original code had a path that could lead to engine being None and then attempting
+    # to use it. The revised create_db_tables handles target_engine being None more explicitly.
+    # The __main__ block now also reflects this more robust checking.

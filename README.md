@@ -163,6 +163,36 @@ python -m unittest tests
 ```
 If that doesn't work, the first command is more explicit and reliable. Make sure your current directory is the project root when running this command.
 
+### Running Integration Tests
+
+**Purpose**: Integration tests verify the interaction between different components of the application, including external services like the Binance Testnet API and PostgreSQL. They ensure that the system works together as a whole.
+
+**Prerequisites**:
+*   A running PostgreSQL server.
+*   The Binance Testnet API keys must be configured. Copy `config/.env.test.example` to a new file named `.env.test` in the project root:
+    ```bash
+    cp config/.env.test.example .env.test
+    ```
+*   Edit `.env.test` to provide your actual Binance Testnet API key and secret.
+*   Ensure the database connection details in `.env.test` (especially `DB_NAME`, `DB_USER`, `DB_PASSWORD`) are correctly set up for your test PostgreSQL instance. The tests will attempt to create the test database (e.g., `binance_tracker_db_test` as defined in `.env.test`) if it doesn't exist, provided the configured PostgreSQL user has `CREATEDB` privileges. Otherwise, you may need to create the test database manually.
+
+**Command to Run**:
+To run the integration tests, use the following command from the project root:
+```bash
+python -m unittest tests.test_integration
+```
+Alternatively, you can run a specific test class or method if needed:
+```bash
+python -m unittest tests.test_integration.TestIntegration
+python -m unittest tests.test_integration.TestIntegration.test_scenario_on_demand_fetch
+```
+
+**Important Notes**:
+*   Integration tests interact with the live Binance Testnet and will make actual API calls.
+*   These tests will also interact with your PostgreSQL database, creating tables and potentially dropping the test database specified in `.env.test` (if `CI_TEARDOWN_DB=true` is set in `.env.test` and the database was created by the test run). Ensure no critical data exists in the specified test database.
+*   The tests may take a few minutes to run, especially the scheduler test which involves waiting for scheduled jobs.
+*   If running for the first time, the tests might attempt to create the test database. Subsequent runs will use the existing test database and clear table data before each test execution.
+
 ## Logging
 
 *   The application uses Python's `logging` module.

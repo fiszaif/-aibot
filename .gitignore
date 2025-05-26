@@ -127,3 +127,12 @@ output_data/
 # Log files
 logs/
 *.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.test.example 
+# The above lines ensure that while all .env and .env.* files are ignored,
+# the example files are NOT ignored.
+# Specifically, .env.test (user-created, sensitive) will be ignored.
