@@ -1,0 +1,6 @@
+python-binance
+requests
+python-dotenv
+SQLAlchemy==1.4.46
+psycopg2-binary==2.9.5
+APScheduler==3.10.1
